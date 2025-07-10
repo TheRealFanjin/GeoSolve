@@ -1,0 +1,12 @@
+#main, body {
+    text-align: center;
+    display: inline;
+    font-size: xx-large;
+    font-family: 'Courier New', Courier, monospace;
+}
+#main > p {
+    font-size: larger;
+}
+body {
+    background-color: #c8edad;
+}

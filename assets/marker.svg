@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<!-- Green Map Marker -->
+<path d="M32 4C21 4 12 13 12 24c0 11 10 20 20 36 10-16 20-25 20-36 0-11-9-20-20-20z" fill="#2ecc71"/>
+<!-- Center Circle (optional, white to simulate light cutout) -->
+<circle cx="32" cy="24" r="6" fill="#ffffff"/>
+<!-- Red X -->
+<line x1="20" y1="20" x2="44" y2="44" stroke="#e74c3c" stroke-width="4" stroke-linecap="round"/>
+<line x1="44" y1="20" x2="20" y2="44" stroke="#e74c3c" stroke-width="4" stroke-linecap="round"/>
+</svg>
