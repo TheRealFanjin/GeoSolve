@@ -95,7 +95,7 @@ model.compile(
 
 checkpoint_callback_n_steps = ModelCheckpoint(
      filepath=os.path.join(MODEL_SAVE_PATH, "model_batch_{batch:05d}.keras"),
-     save_freq=100, 
+     save_freq=1000,
      save_weights_only=False,
      verbose=1
  )
