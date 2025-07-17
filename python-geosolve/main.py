@@ -16,7 +16,7 @@ from keras.callbacks import ModelCheckpoint
 MAIN_ZIP = "dataset/archive.zip"
 INTERNAL_DATA = "dataset/"
 CSV_PATH = INTERNAL_DATA + "coords.csv"
-IMG_SIZE = (224, 224)
+IMG_SIZE = (512, 512)
 BATCH_SIZE = 32
 EPOCHS = 50
 BUFFER_SIZE = 1024
