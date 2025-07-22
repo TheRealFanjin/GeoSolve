@@ -1,13 +1,3 @@
-const express = require("express");
-const app = express();
-app.set("view engine", "ejs");
-app.get('/', (req, res) => {
-    console.log("here");
-    res.render("index");
-})
-app.listen(3000);
-
-/*
 let imageButton = document.getElementById("image");
 const imageSend = () => {
     console.log(imageButton.files[0]);
@@ -21,5 +11,3 @@ const imageSend = () => {
     reader.addEventListener("load", setImage);
 }
 imageButton.addEventListener("change",imageSend,false);
-*/
-
