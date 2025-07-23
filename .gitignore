@@ -5,3 +5,5 @@ venv/
 .DS_Store
 .idea/
 node_modules/
+.env
+saved_models/
