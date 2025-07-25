@@ -155,5 +155,22 @@ body {
     top: 50%;
 }
 
+.uploadButton {
+    background-color: transparent;
+    color: white;
+    font-weight: 600;
+    border: 3px solid #9FDB11;
+    border-radius: 50px;
+    width: 150px;
+    height: 50px;
+    transition: 0.1s;
+}
+
+.uploadButton:hover {
+    font-weight: 600;
+    color: black;
+    background-color: #9FDB11;
+}
+
 
 
