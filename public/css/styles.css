@@ -1,5 +1,5 @@
 @import "tailwindcss";
-
+/*
 #main, body {
     text-align: center;
     display: inline;
@@ -15,3 +15,139 @@ body {
 @theme {
     --font-display: "Times New Roman", "sans-serif";
 }
+*/
+
+/* vecteezy_location-map-marker-icon-symbol-on-transparent-background_17178337 1 */
+body {
+    background-color: black
+}
+#text {
+    position: relative;
+    width: 1000px;
+    height: 500px;
+    left: 0%;
+    top: 0%; 
+}
+#marker {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    left: 41%;
+    top: 25%;
+    background: url(../assets/marker.png);
+    background-size: contain;
+}
+#title {
+    position: relative;
+    width: 925px;
+    height: 161px;
+    left: 0px;
+    top: 0px;
+
+    font-family: 'Gantari';
+    font-style: normal;
+    font-weight: 400;
+    font-size: 72px;
+    line-height: 154px;
+    text-align: center;
+    letter-spacing: 0.01em;
+
+    color: #FFFFFF;
+}
+#line-break {
+    position: relative;
+    width: 718px;
+    height: 3px;
+    left: 11%;
+    top: 0%;
+
+    background: #D9D9D9;
+    border-radius: 90px;
+
+}
+#description {
+    position: relative;
+    width: 831.13px;
+    height: 160.91px;
+    left: 7%;
+    top: 5%;
+
+    font-family: 'Gantari';
+    font-style: normal;
+    font-weight: 400;
+    font-size: 20px;
+    line-height: 38px;
+    text-align: center;
+    letter-spacing: -0.02em;
+
+    color: #FFFFFF;
+
+
+}
+.stars{
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    transform: rotate(30deg);
+    background-size: contain;
+    user-select: none;
+}
+#star1 {
+    left: 30%;
+    top: 70%;
+}
+#star2 {
+    left: 5.4%;
+    top: 5.4%;
+}
+#star3 {
+    left: 70.13%;
+    top: 3.31%;
+    transform: rotate(-20.49deg);
+}
+#star4 {
+    left: 7.68%;
+    top: 17%;
+    transform: rotate(-10.84deg);
+}
+#star5 {
+    left: 15.53%;
+    top: 88.73%;
+}
+#star6 {
+    left: 54.62%;
+    top: 86.53%;
+    transform: rotate(-28.06deg);
+}
+#star7 {
+    left: 63.52%;
+    top: 22.49%;
+    transform: rotate(-19.79deg);
+}
+#star8 {
+    left: 6.25%;
+    top: 68.82%;
+}
+#star9 {
+    left: 60.16%;
+    top: 68.82%;
+}
+#star10 {
+    left: 10%;
+    top: 81.97%;
+}
+#star11 {
+    left: 36.04%;
+    right: 61.15%;
+    top: 13.92%;
+    bottom: 80.78%;
+    transform: rotate(20.19deg);
+}
+.earth {
+    position: fixed;
+    left: 1000px;
+    top: -151.5px;
+}
+
+
+
