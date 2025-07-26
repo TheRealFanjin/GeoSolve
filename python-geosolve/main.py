@@ -27,7 +27,7 @@ MODEL_FILENAME_FORMAT = os.path.join(MODEL_SAVE_PATH, "model_epoch_{epoch:02d}.k
 
 
 print('loading dataset')
-countries = np.array(sorted([item.name for item in pathlib.Path(os.getcwd() + '\\dataset\\train').glob('*')]))
+countries = np.array(sorted([item.name for item in pathlib.Path(os.getcwd() + '/dataset/train').glob('*')]))
 
 
 def preprocess(path):
@@ -85,11 +85,11 @@ history = model.fit(
 
 FINAL_MODEL_PATH = os.path.join(MODEL_SAVE_PATH, "final_trained_model")
 os.makedirs(FINAL_MODEL_PATH, exist_ok=True)
-model.save(FINAL_MODEL_PATH + '\\model.keras')
+model.save(FINAL_MODEL_PATH + '/model.keras')
 
 loss = history.history["loss"]
 epochsRange = range(1, EPOCHS + 1)
-plt.figure(figsize = (10, 6))
+plt.figure(figsize=(10, 6))
 plt.plot(epochsRange, loss, label="Training loss", color="blue")
 plt.title("Training Over Loss Epochs")
 plt.xlabel("Epochs")
