@@ -1,96 +1,120 @@
-import tensorflow as tf
-from tensorflow import keras
-from keras.layers import Dense
-from keras import metrics
-from keras import optimizers
-from keras import losses
-from keras import layers
-import zipfile as zp
-import numpy as np
-import pandas as pd
+import torch
+from torch import nn
+from torchvision import transforms, datasets
+from torch.utils.data import DataLoader
 import os
-import pathlib
-import io
 import matplotlib.pyplot as plt
-from keras.callbacks import ModelCheckpoint
+from tqdm import tqdm
 
-#config
-INTERNAL_DATA = "dataset/"
-IMG_SIZE = (512, 512)
-BATCH_SIZE = 32
+INTERNAL_DATA = "dataset/train"
+MODEL_SAVE_PATH = "saved_models/"
+IMG_SIZE = 256
+BATCH_SIZE = 64
 EPOCHS = 50
-SHUFFLE_BUFFER_SIZE = 1000
-AUTOTUNE = tf.data.AUTOTUNE
-
-MODEL_SAVE_PATH = "saved_models"
-MODEL_FILENAME_FORMAT = os.path.join(MODEL_SAVE_PATH, "model_epoch_{epoch:02d}.keras")
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print('Using device:', DEVICE)
 
 
-print('loading dataset')
-countries = np.array(sorted([item.name for item in pathlib.Path(os.getcwd() + '/dataset/train').glob('*')]))
+class Network(nn.Module):
+    def __init__(self, num_classes=94):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 128, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),  # -> (128, 256, 256)
+
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),  # -> (256, 128, 128)
+
+            # Global average pool to 1×1
+            nn.AdaptiveAvgPool2d((1, 1))  # -> (256, 1, 1)
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),  # -> (256,)
+            nn.Linear(256, 512),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.3),
+            nn.Linear(512, num_classes),
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.classifier(x)
+        return x
 
 
-def preprocess(path):
-    # get encoded country label
-    country = tf.argmax(tf.strings.split(path, os.path.sep)[-3] == countries)
-
-    # decode img
-    image_bytes = tf.io.read_file(path)
-    image = tf.image.decode_jpeg(image_bytes, channels=3)
-    return image, country
-
-
-# Load dataset
-train_ds = tf.data.Dataset.list_files('dataset/train/*/*/*.jpeg', shuffle=False)
-train_ds = train_ds.map(preprocess, num_parallel_calls=AUTOTUNE)
-for image, label in train_ds.take(1):
-    print(image.shape)
-train_ds = train_ds.shuffle(SHUFFLE_BUFFER_SIZE)
-train_ds = train_ds.batch(BATCH_SIZE).prefetch(AUTOTUNE)
-
-
-print('loading model')
-model = keras.Sequential(layers=[
-    keras.Input(shape=IMG_SIZE + (3,)),
-    keras.layers.Conv2D(128, (3, 3), activation="relu", padding="same"),
-    keras.layers.Conv2D(128, (3, 3), activation="relu", padding="same"),
-    keras.layers.MaxPooling2D((2, 2)),
-    keras.layers.Conv2D(256, (3, 3), activation="relu", padding="same"),
-    keras.layers.MaxPooling2D((2, 2)),
-    keras.layers.GlobalAvgPool2D(),
-    keras.layers.Dense(512, activation="relu"),
-    keras.layers.Dropout(0.3),
-    keras.layers.Dense(94, activation="softmax")
+transform = transforms.Compose([
+    transforms.RandomApply(
+        [transforms.RandomResizedCrop(
+            256,  # final size
+            scale=(0.8, 1.0),  # keep 80–100% of area
+            ratio=(0.95, 1.05))  # near‑square, keeps distortion low
+        ],
+        p=0.2
+    ),
+    transforms.Resize(IMG_SIZE),
+    transforms.ToTensor()
 ])
-model.compile(
-    optimizer=optimizers.Adam(learning_rate=1e-3),
-    loss='sparse_categorical_crossentropy',
-    metrics=['accuracy']
-)
+print('loading data')
+train_ds = datasets.ImageFolder(root=INTERNAL_DATA, transform=transform)
+print(train_ds.classes)
+train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=16, pin_memory=True)
+model = Network().to(DEVICE)
+print(model)
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-model.summary()
+torch.backends.cudnn.benchmark = True
+model = torch.compile(model, mode="max-autotune")
+scaler = torch.amp.GradScaler('cuda')
 
-checkpoint_callback_n_steps = ModelCheckpoint(
-     filepath=os.path.join(MODEL_SAVE_PATH, "model_batch_{batch:05d}.keras"),
-     save_freq=1000,
-     save_weights_only=False,
-     verbose=1
- )
 print('training')
-history = model.fit(
-    train_ds,
-    epochs=EPOCHS,
-    callbacks=[checkpoint_callback_n_steps]
-    )
+loss_history = []
+i = 1
+for epoch in range(1, EPOCHS + 1):
+    epoch_loss = 0
+    model.train()
 
-FINAL_MODEL_PATH = os.path.join(MODEL_SAVE_PATH, "final_trained_model")
-os.makedirs(FINAL_MODEL_PATH, exist_ok=True)
-model.save(FINAL_MODEL_PATH + '/model.keras')
+    for images, labels in tqdm(train_dl,
+                               desc=f"Epoch {epoch}/{EPOCHS}",
+                               leave=False,
+                               ncols=80):
+        images = images.to(DEVICE)
+        labels = labels.to(DEVICE)
 
-loss = history.history["loss"]
+        optimizer.zero_grad()
+        with torch.amp.autocast('cuda', dtype=torch.bfloat16):
+            logits = model(images)
+            loss = criterion(logits, labels)
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
+        batch_size = images.size(0)
+        epoch_loss += loss.item() * batch_size
+
+        if i % 32278 == 0:
+            ckpt = f"{MODEL_SAVE_PATH}/model_batch_{i:05d}.pt"
+            torch.save(model.state_dict(), ckpt)
+            print(f"saved checkpoint {ckpt}")
+        i += 1
+
+    epoch_loss /= len(train_ds)
+    loss_history.append(epoch_loss)
+    print(f"Epoch {epoch:02d}/{EPOCHS} — loss: {epoch_loss:.4f}")
+
+final_dir = os.path.join(MODEL_SAVE_PATH, "final_trained_model")
+os.makedirs(final_dir, exist_ok=True)
+torch.save(model.state_dict(), os.path.join(final_dir, "model.pt"))
+print(f"saved final model to {final_dir}")
+
 epochsRange = range(1, EPOCHS + 1)
 plt.figure(figsize=(10, 6))
-plt.plot(epochsRange, loss, label="Training loss", color="blue")
+plt.plot(epochsRange, loss_history, label="Training loss", color="blue")
 plt.title("Training Over Loss Epochs")
 plt.xlabel("Epochs")
 plt.ylabel("Loss (Mean Squared Error)")
