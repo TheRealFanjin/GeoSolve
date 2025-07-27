@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 import os
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from model import Network
 
 INTERNAL_DATA = "dataset/train"
 MODEL_SAVE_PATH = "saved_models/"
@@ -13,39 +14,6 @@ BATCH_SIZE = 64
 EPOCHS = 50
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print('Using device:', DEVICE)
-
-
-class Network(nn.Module):
-    def __init__(self, num_classes=94):
-        super().__init__()
-        self.features = nn.Sequential(
-            nn.Conv2d(3, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),  # -> (128, 256, 256)
-
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),  # -> (256, 128, 128)
-
-            # Global average pool to 1×1
-            nn.AdaptiveAvgPool2d((1, 1))  # -> (256, 1, 1)
-        )
-
-        self.classifier = nn.Sequential(
-            nn.Flatten(),  # -> (256,)
-            nn.Linear(256, 512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(p=0.3),
-            nn.Linear(512, num_classes),
-        )
-
-    def forward(self, x):
-        x = self.features(x)
-        x = self.classifier(x)
-        return x
-
 
 transform = transforms.Compose([
     transforms.RandomApply(
@@ -61,15 +29,17 @@ transform = transforms.Compose([
 ])
 print('loading data')
 train_ds = datasets.ImageFolder(root=INTERNAL_DATA, transform=transform)
-print(train_ds.classes)
+class_to_idx = train_ds.class_to_idx
+print(class_to_idx)
 train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=16, pin_memory=True)
-model = Network().to(DEVICE)
-print(model)
+base_model = Network().to(DEVICE)
+print(base_model)
+input('Press enter to continue')
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(base_model.parameters(), lr=0.001)
 
 torch.backends.cudnn.benchmark = True
-model = torch.compile(model, mode="max-autotune")
+compiled_model = torch.compile(base_model, mode="max-autotune")
 scaler = torch.amp.GradScaler('cuda')
 
 print('training')
@@ -77,7 +47,7 @@ loss_history = []
 i = 1
 for epoch in range(1, EPOCHS + 1):
     epoch_loss = 0
-    model.train()
+    compiled_model.train()
 
     for images, labels in tqdm(train_dl,
                                desc=f"Epoch {epoch}/{EPOCHS}",
@@ -88,7 +58,7 @@ for epoch in range(1, EPOCHS + 1):
 
         optimizer.zero_grad()
         with torch.amp.autocast('cuda', dtype=torch.bfloat16):
-            logits = model(images)
+            logits = compiled_model(images)
             loss = criterion(logits, labels)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -97,9 +67,16 @@ for epoch in range(1, EPOCHS + 1):
         batch_size = images.size(0)
         epoch_loss += loss.item() * batch_size
 
-        if i % 32278 == 0:
+        if i % 20000 == 0:
             ckpt = f"{MODEL_SAVE_PATH}/model_batch_{i:05d}.pt"
-            torch.save(model.state_dict(), ckpt)
+            torch.save({
+                'state_dict': base_model.state_dict(),
+                'class_to_idx': class_to_idx,
+                'epoch': epoch,
+                'optimizer': optimizer.state_dict(),
+                'scaler': scaler.state_dict(),
+                'loss_history': loss_history
+            }, ckpt)
             print(f"saved checkpoint {ckpt}")
         i += 1
 
@@ -109,7 +86,7 @@ for epoch in range(1, EPOCHS + 1):
 
 final_dir = os.path.join(MODEL_SAVE_PATH, "final_trained_model")
 os.makedirs(final_dir, exist_ok=True)
-torch.save(model.state_dict(), os.path.join(final_dir, "model.pt"))
+torch.save(compiled_model.state_dict(), os.path.join(final_dir, "model.pt"))
 print(f"saved final model to {final_dir}")
 
 epochsRange = range(1, EPOCHS + 1)
