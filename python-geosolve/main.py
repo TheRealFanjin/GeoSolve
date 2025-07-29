@@ -1,96 +1,97 @@
-import tensorflow as tf
-from tensorflow import keras
-from keras.layers import Dense
-from keras import metrics
-from keras import optimizers
-from keras import losses
-from keras import layers
-import zipfile as zp
-import numpy as np
-import pandas as pd
+import torch
+from torch import nn
+from torchvision import transforms, datasets
+from torch.utils.data import DataLoader
 import os
-import pathlib
-import io
 import matplotlib.pyplot as plt
-from keras.callbacks import ModelCheckpoint
+from tqdm import tqdm
+from model import Network
 
-#config
-INTERNAL_DATA = "../../random-street-view/data/street_view_data"
-IMG_SIZE = (512, 512)
-BATCH_SIZE = 32
+INTERNAL_DATA = "dataset/train"
+MODEL_SAVE_PATH = "saved_models/"
+IMG_SIZE = 256
+BATCH_SIZE = 64
 EPOCHS = 50
-SHUFFLE_BUFFER_SIZE = 1000
-AUTOTUNE = tf.data.AUTOTUNE
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print('Using device:', DEVICE)
 
-MODEL_SAVE_PATH = "saved_models"
-MODEL_FILENAME_FORMAT = os.path.join(MODEL_SAVE_PATH, "model_epoch_{epoch:02d}.keras")
-
-
-print('loading dataset')
-countries = np.array(sorted([item.name for item in pathlib.Path(INTERNAL_DATA + "batch2.jsonl").glob('*')]))
-
-
-def preprocess(path):
-    # get encoded country label
-    country = tf.argmax(tf.strings.split(path, os.path.sep)[-3] == countries)
-
-    # decode img
-    image_bytes = tf.io.read_file(path)
-    image = tf.image.decode_jpeg(image_bytes, channels=3)
-    return image, country
-
-
-# Load dataset
-train_ds = tf.data.Dataset.list_files(INTERNAL_DATA + "/street_view_images", shuffle=False)
-train_ds = train_ds.map(preprocess, num_parallel_calls=AUTOTUNE)
-for image, label in train_ds.take(1):
-    print(image.shape)
-train_ds = train_ds.shuffle(SHUFFLE_BUFFER_SIZE)
-train_ds = train_ds.batch(BATCH_SIZE).prefetch(AUTOTUNE)
-
-
-print('loading model')
-model = keras.Sequential(layers=[
-    keras.Input(shape=IMG_SIZE + (3,)),
-    keras.layers.Conv2D(128, (3, 3), activation="relu", padding="same"),
-    keras.layers.Conv2D(128, (3, 3), activation="relu", padding="same"),
-    keras.layers.MaxPooling2D((2, 2)),
-    keras.layers.Conv2D(256, (3, 3), activation="relu", padding="same"),
-    keras.layers.MaxPooling2D((2, 2)),
-    keras.layers.GlobalAvgPool2D(),
-    keras.layers.Dense(512, activation="relu"),
-    keras.layers.Dropout(0.3),
-    keras.layers.Dense(94, activation="softmax")
+transform = transforms.Compose([
+    transforms.RandomApply(
+        [transforms.RandomResizedCrop(
+            256,  # final size
+            scale=(0.8, 1.0),  # keep 80–100% of area
+            ratio=(0.95, 1.05))  # near‑square, keeps distortion low
+        ],
+        p=0.2
+    ),
+    transforms.Resize(IMG_SIZE),
+    transforms.ToTensor()
 ])
-model.compile(
-    optimizer=optimizers.Adam(learning_rate=1e-3),
-    loss='sparse_categorical_crossentropy',
-    metrics=['accuracy']
-)
+print('loading data')
+train_ds = datasets.ImageFolder(root=INTERNAL_DATA, transform=transform)
+class_to_idx = train_ds.class_to_idx
+print(class_to_idx)
+train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=16, pin_memory=True)
+base_model = Network().to(DEVICE)
+print(base_model)
+input('Press enter to continue')
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(base_model.parameters(), lr=0.001)
 
-model.summary()
+torch.backends.cudnn.benchmark = True
+compiled_model = torch.compile(base_model, mode="max-autotune")
+scaler = torch.amp.GradScaler('cuda')
 
-checkpoint_callback_n_steps = ModelCheckpoint(
-     filepath=os.path.join(MODEL_SAVE_PATH, "model_batch_{batch:05d}.keras"),
-     save_freq=1000,
-     save_weights_only=False,
-     verbose=1
- )
 print('training')
-history = model.fit(
-    train_ds,
-    epochs=EPOCHS,
-    callbacks=[checkpoint_callback_n_steps]
-    )
+loss_history = []
+i = 1
+for epoch in range(1, EPOCHS + 1):
+    epoch_loss = 0
+    compiled_model.train()
 
-FINAL_MODEL_PATH = os.path.join(MODEL_SAVE_PATH, "final_trained_model")
-os.makedirs(FINAL_MODEL_PATH, exist_ok=True)
-model.save(FINAL_MODEL_PATH + '/model.keras')
+    for images, labels in tqdm(train_dl,
+                               desc=f"Epoch {epoch}/{EPOCHS}",
+                               leave=False,
+                               ncols=80):
+        images = images.to(DEVICE)
+        labels = labels.to(DEVICE)
 
-loss = history.history["loss"]
+        optimizer.zero_grad()
+        with torch.amp.autocast('cuda', dtype=torch.bfloat16):
+            logits = compiled_model(images)
+            loss = criterion(logits, labels)
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
+        batch_size = images.size(0)
+        epoch_loss += loss.item() * batch_size
+
+        if i % 20000 == 0:
+            ckpt = f"{MODEL_SAVE_PATH}/model_batch_{i:05d}.pt"
+            torch.save({
+                'state_dict': base_model.state_dict(),
+                'class_to_idx': class_to_idx,
+                'epoch': epoch,
+                'optimizer': optimizer.state_dict(),
+                'scaler': scaler.state_dict(),
+                'loss_history': loss_history
+            }, ckpt)
+            print(f"saved checkpoint {ckpt}")
+        i += 1
+
+    epoch_loss /= len(train_ds)
+    loss_history.append(epoch_loss)
+    print(f"Epoch {epoch:02d}/{EPOCHS} — loss: {epoch_loss:.4f}")
+
+final_dir = os.path.join(MODEL_SAVE_PATH, "final_trained_model")
+os.makedirs(final_dir, exist_ok=True)
+torch.save(compiled_model.state_dict(), os.path.join(final_dir, "model.pt"))
+print(f"saved final model to {final_dir}")
+
 epochsRange = range(1, EPOCHS + 1)
 plt.figure(figsize=(10, 6))
-plt.plot(epochsRange, loss, label="Training loss", color="blue")
+plt.plot(epochsRange, loss_history, label="Training loss", color="blue")
 plt.title("Training Over Loss Epochs")
 plt.xlabel("Epochs")
 plt.ylabel("Loss (Mean Squared Error)")

@@ -5,3 +5,5 @@ venv/
 .DS_Store
 .idea/
 node_modules/
+saved_models/
+__pycache__/
