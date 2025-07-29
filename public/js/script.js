@@ -28,6 +28,7 @@ const submitForm = async () => {
                     behavior: "smooth",
                     block: "center"
                 });
+                document.body.classList.remove("no-scroll");
                 uploadForm.reset();
             } else {
                 const errorData = await response.json();
