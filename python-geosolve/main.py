@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from keras.callbacks import ModelCheckpoint
 
 #config
-INTERNAL_DATA = "dataset/"
+INTERNAL_DATA = "../../random-street-view/data/street_view_data"
 IMG_SIZE = (512, 512)
 BATCH_SIZE = 32
 EPOCHS = 50
@@ -27,7 +27,7 @@ MODEL_FILENAME_FORMAT = os.path.join(MODEL_SAVE_PATH, "model_epoch_{epoch:02d}.k
 
 
 print('loading dataset')
-countries = np.array(sorted([item.name for item in pathlib.Path(os.getcwd() + '/dataset/train').glob('*')]))
+countries = np.array(sorted([item.name for item in pathlib.Path(INTERNAL_DATA + "batch2.jsonl").glob('*')]))
 
 
 def preprocess(path):
@@ -41,7 +41,7 @@ def preprocess(path):
 
 
 # Load dataset
-train_ds = tf.data.Dataset.list_files('dataset/train/*/*/*.jpeg', shuffle=False)
+train_ds = tf.data.Dataset.list_files(INTERNAL_DATA + "/street_view_images", shuffle=False)
 train_ds = train_ds.map(preprocess, num_parallel_calls=AUTOTUNE)
 for image, label in train_ds.take(1):
     print(image.shape)

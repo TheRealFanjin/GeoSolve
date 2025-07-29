@@ -5,31 +5,54 @@
         <meta charset="UTF-8">
         <link rel="icon" href="assets/marker.svg" type="image/svg+xml">
         <link rel="stylesheet" href="/css/styles.css">
-        
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="device-width, initial-scale=1.0">
+        <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Gantari:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     </head>
     <body>
-        <div id="main">
-            <h1>Geosolve</h1>
-            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer a ligula ultrices erat eleifend dapibus.</p>
-        </div>
-        <div>
-            <input type="file" id="image">
-        </div>
-        <script src="/js/script.js"></script>
-        <img id="outputImage" hidden>
-        <div id="map">
-            <iframe id="mapFrame"
-              width="600"
-              height="450"
-              style="border:0"
-              loading="lazy"
-              allowfullscreen
-              referrerpolicy="no-referrer-when-downgrade"
-              src="https://www.google.com/maps/embed/v1/view?key=AIzaSyBRBsNfIfOXsxOve3I_vru6Qwwz0kAj8YQ
-                &center=30.2859174,-97.7395459&zoom=16">
-            </iframe>
+        <div id="mainContent">
+            <div id="title">
+                <h1 id="titleText">Geo</h1>
+                <div id="marker"></div>
+                <h1 id="titleText">solve</h1>
+            </div>
+            <div id="mainContentContainer">
+                <div id="line-break"></div>
+                <div id="description">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus congue purus ut nunc consectetur scelerisque. Nulla sed auctor ligula. Suspendisse rhoncus et dolor sit amet volutpat.</div>
+                <div class="upload-container">
+                    <form id="upload-form" action="/upload" method="POST" enctype="multipart/form-data">
+                        <label for="file-upload" class="upload-button">
+                            <p class="upload-button-text">Upload Image</p>
+                        </label>
+                        <input id="file-upload" name="inputImage" type="file" accept=".png,.jpeg,.jpg">
+                    </form>
+                </div>
+            </div>
         </div>
 
+        <!--<div id="star"></div>-->
+        <img id="star1" class="stars" src="assets/star.svg" alt="star">
+        <img id="star2" class="stars" src="assets/star.svg" alt="star">
+        <img id="star3" class="stars" src="assets/star.svg" alt="star">
+        <img id="star4" class="stars" src="assets/star.svg" alt="star">
+        <img id="star5" class="stars" src="assets/star.svg" alt="star">
+        <img id="star6" class="stars" src="assets/star.svg" alt="star">
+        <img id="star7" class="stars" src="assets/star.svg" alt="star">
+        <img id="star8" class="stars" src="assets/star.svg" alt="star">
+        <img id="star9" class="stars" src="assets/star.svg" alt="star">
+        <img id="star10" class="stars" src="assets/star.svg" alt="star">
+        <img id="star11" class="stars" src="assets/star.svg" alt="star">
+        <img id="star12" class="stars" src="assets/star.svg" alt="star">
+        <div id="earth-container">
+            <lottie-player id="earth" src="assets/Earth.json" background="transparent" speed="1" loop autoplay></lottie-player>
+        </div>
+        <div id="second-screen">
+            <div class="image-crop-container">
+                <img id="input-image-screen" src="..." alt="inputImage">
+            </div>
+        </div>
+        <script src="/js/script.js"></script>
     </body>
 </html>

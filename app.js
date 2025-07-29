@@ -1,7 +1,8 @@
 const express = require("express");
-const apiRouter = require("./routes/api.js");
+const apiRouter = require("./routes/upload.js");
 const app = express();
-app.use("/api", apiRouter);
+
+app.use("/", apiRouter);
 app.use(express.static("public"));
 
 app.set("view engine", "ejs");
