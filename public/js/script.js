@@ -22,14 +22,12 @@ const submitForm = async () => {
             });
 
             if(response.ok) {
+                secondScreen.removeAttribute("hidden");
                 inputImageScreen.setAttribute("src", URL.createObjectURL(file))
                 secondScreen.scrollIntoView({
                     behavior: "smooth",
                     block: "center"
                 });
-                setTimeout(() => {
-
-                }, 800);
                 uploadForm.reset();
             } else {
                 const errorData = await response.json();

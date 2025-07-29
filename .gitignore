@@ -7,3 +7,5 @@ venv/
 node_modules/
 saved_models/
 __pycache__/
+.env
+public/uploads
